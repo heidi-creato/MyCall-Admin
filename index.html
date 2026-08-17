@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MyCal — إدارة الأكواد</title>
+<style>
+  :root{
+    --bg-1:#0a0c11; --bg-2:#11141b;
+    --surface:rgba(255,255,255,.065); --surface-border:rgba(255,255,255,.11);
+    --line:rgba(255,255,255,.08); --text:#f2f4f7; --muted:#8a90a0; --muted-2:#5d6273;
+    --accent:#5b8cff; --accent-soft:rgba(91,140,255,.14);
+    --pos:#2fd695; --pos-soft:rgba(47,214,149,.12);
+    --neg:#ff5c6c; --neg-soft:rgba(255,92,108,.12);
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-mono:ui-monospace,'SFMono-Regular','Menlo','Consolas','Liberation Mono',monospace;
+    --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:var(--font); color:var(--text);
+    background:
+      radial-gradient(900px 500px at 12% -8%, rgba(91,140,255,.16) 0%, transparent 55%),
+      radial-gradient(800px 480px at 105% 8%, rgba(47,214,149,.10) 0%, transparent 55%),
+      linear-gradient(180deg, var(--bg-2), var(--bg-1) 60%);
+    min-height:100vh; padding:calc(16px + var(--safe-t)) 14px calc(20px + var(--safe-b));
+    display:flex; justify-content:center;
+  }
+  .wrap{ width:100%; max-width:520px; }
+
+  h1{ font-size:17px; font-weight:800; margin-bottom:2px; }
+  .subtitle{ font-size:12px; color:var(--muted); margin-bottom:18px; }
+
+  .card{
+    border-radius:20px; background:var(--surface); border:1px solid var(--surface-border);
+    box-shadow:0 22px 50px -26px rgba(0,0,0,.7); padding:20px;
+  }
+
+  /* login */
+  #loginCard{ max-width:360px; margin:60px auto 0; text-align:center; }
+  #loginCard .lock-mark{
+    width:48px;height:48px;border-radius:13px;margin:0 auto 14px;
+    background:linear-gradient(135deg, var(--accent), #7ea2ff);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 6px 16px -6px rgba(91,140,255,.6);
+  }
+  #loginCard svg{ width:22px;height:22px;stroke:#fff;stroke-width:2.2; }
+  input{
+    width:100%; background:rgba(255,255,255,.05); border:1.5px solid var(--surface-border);
+    border-radius:12px; padding:12px; font-family:var(--font); font-size:14px;
+    color:var(--text); margin-top:10px; -webkit-appearance:none; appearance:none;
+    transition:border-color .2s ease;
+  }
+  input:focus{ outline:none; border-color:var(--accent); }
+  input::placeholder{ color:var(--muted-2); }
+  button{
+    border:none; border-radius:12px; cursor:pointer; font-weight:800;
+    font-family:var(--font); touch-action:manipulation;
+    transition:transform .12s ease, opacity .15s ease;
+  }
+  button:active{ transform:scale(.97); }
+  button:disabled{ opacity:.5; }
+  .btn-primary{
+    width:100%; margin-top:14px; padding:12px; font-size:14px;
+    background:linear-gradient(135deg, var(--accent), #7ea2ff); color:#fff;
+  }
+  .form-msg{ margin-top:12px; font-size:12.5px; font-weight:700; min-height:16px; }
+  .form-msg.error{ color:#ff8791; }
+  .form-msg.info{ color:#a9c2ff; }
+
+  /* dashboard */
+  #dashboard{ display:none; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .logout-btn{
+    background:rgba(255,255,255,.05); border:1px solid var(--surface-border);
+    color:var(--muted); font-size:11.5px; padding:8px 14px; border-radius:100px; font-weight:700;
+  }
+
+  .gen-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .gen-row select, .gen-row input{ margin-top:0; }
+  .gen-row .days{ width:90px; flex-shrink:0; }
+  .gen-row .note{ flex:1; min-width:120px; }
+  .add-btn{
+    padding:12px 18px; font-size:13px; color:#fff;
+    background:linear-gradient(135deg, var(--pos), #37e0a4); white-space:nowrap;
+  }
+
+  .new-code-box{
+    display:none; margin-top:4px; padding:12px 14px; border-radius:14px;
+    background:var(--pos-soft); border:1px solid rgba(47,214,149,.3);
+    font-family:var(--font-mono); font-size:15px; font-weight:800; letter-spacing:2px;
+    color:var(--pos); text-align:center; direction:ltr;
+  }
+
+  .list-title{
+    font-size:11px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
+    color:var(--muted); margin:20px 0 10px;
+  }
+  .code-entry{
+    background:rgba(255,255,255,.03); border:1px solid var(--line);
+    border-radius:14px; padding:12px 14px; margin-bottom:8px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .code-info{ min-width:0; }
+  .code-value{
+    font-family:var(--font-mono); font-weight:800; font-size:13.5px;
+    letter-spacing:1px; direction:ltr; text-align:left;
+  }
+  .code-meta{ font-size:11px; color:var(--muted); margin-top:3px; }
+  .code-meta.expired{ color:var(--neg); }
+  .code-meta.revoked{ color:var(--neg); }
+  .code-meta.active{ color:var(--pos); }
+  .code-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .icon-btn{
+    width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.05);
+    border:1px solid var(--surface-border); display:flex; align-items:center; justify-content:center;
+    color:var(--muted);
+  }
+  .icon-btn svg{ width:15px; height:15px; }
+  .icon-btn.danger{ color:var(--neg); }
+  .empty-state{ text-align:center; color:var(--muted-2); font-size:13px; padding:20px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card" id="loginCard">
+    <div class="lock-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+    </div>
+    <h1>لوحة إدارة MyCal</h1>
+    <div class="subtitle" style="margin-top:4px;">دخول المشرف فقط</div>
+    <input id="email" type="email" placeholder="البريد الإلكتروني" autocomplete="username">
+    <input id="password" type="password" placeholder="كلمة المرور" autocomplete="current-password">
+    <button class="btn-primary" id="loginBtn">دخول</button>
+    <div class="form-msg" id="loginMsg"></div>
+  </div>
+
+  <div id="dashboard">
+    <div class="topbar">
+      <div>
+        <h1>إدارة أكواد التفعيل</h1>
+        <div class="subtitle" id="userLabel"></div>
+      </div>
+      <button class="logout-btn" id="logoutBtn">خروج</button>
+    </div>
+
+    <div class="card">
+      <div class="gen-row">
+        <input class="days" id="daysInput" type="number" min="1" value="30" placeholder="عدد الأيام">
+        <input class="note" id="noteInput" type="text" placeholder="ملاحظة (اسم المستخدم مثلاً)">
+      </div>
+      <button class="add-btn" id="addBtn" style="width:100%;">+ إنشاء كود جديد</button>
+      <div class="new-code-box" id="newCodeBox"></div>
+      <div class="form-msg" id="addMsg"></div>
+    </div>
+
+    <div class="list-title">الأكواد الحالية</div>
+    <div id="codeList"></div>
+  </div>
+
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getFirestore, collection, doc, setDoc, deleteDoc, updateDoc,
+    onSnapshot, Timestamp, query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC9C2eLF4j-TXb1ndnDaRtXPN24S56eIi0",
+    authDomain: "mycal-1b543.firebaseapp.com",
+    projectId: "mycal-1b543",
+    storageBucket: "mycal-1b543.firebasestorage.app",
+    messagingSenderId: "118243337895",
+    appId: "1:118243337895:web:5c9259c9be063533605d82"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+  const db = getFirestore(fbApp);
+
+  const loginCard = document.getElementById('loginCard');
+  const dashboard = document.getElementById('dashboard');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginMsg = document.getElementById('loginMsg');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const userLabel = document.getElementById('userLabel');
+  const daysInput = document.getElementById('daysInput');
+  const noteInput = document.getElementById('noteInput');
+  const addBtn = document.getElementById('addBtn');
+  const addMsg = document.getElementById('addMsg');
+  const newCodeBox = document.getElementById('newCodeBox');
+  const codeList = document.getElementById('codeList');
+
+  function showMsg(el, type, text){
+    el.className = 'form-msg ' + type;
+    el.textContent = text;
+  }
+
+  function generateCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < 8; i++){
+      if (i === 4) out += '-';
+      out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return out;
+  }
+
+  loginBtn.addEventListener('click', async () => {
+    loginBtn.disabled = true;
+    showMsg(loginMsg, 'info', 'جارٍ الدخول...');
+    try{
+      await signInWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
+    }catch(err){
+      showMsg(loginMsg, 'error', 'بيانات الدخول غير صحيحة');
+    }finally{
+      loginBtn.disabled = false;
+    }
+  });
+
+  logoutBtn.addEventListener('click', () => signOut(auth));
+
+  onAuthStateChanged(auth, user => {
+    if (user){
+      loginCard.style.display = 'none';
+      dashboard.style.display = 'block';
+      userLabel.textContent = user.email;
+      listenToCodes();
+    } else {
+      loginCard.style.display = 'block';
+      dashboard.style.display = 'none';
+    }
+  });
+
+  addBtn.addEventListener('click', async () => {
+    const days = parseInt(daysInput.value, 10);
+    if (!days || days < 1){ showMsg(addMsg, 'error', 'أدخل عدد أيام صحيح'); return; }
+    const code = generateCode();
+    const expiresAt = Timestamp.fromMillis(Date.now() + days * 86400000);
+    addBtn.disabled = true;
+    try{
+      await setDoc(doc(db, 'codes', code), {
+        active: true,
+        createdAt: Timestamp.now(),
+        expiresAt,
+        note: noteInput.value.trim() || ''
+      });
+      newCodeBox.style.display = 'block';
+      newCodeBox.textContent = code;
+      showMsg(addMsg, 'info', 'تم إنشاء الكود بنجاح');
+      noteInput.value = '';
+    }catch(err){
+      showMsg(addMsg, 'error', 'تعذر إنشاء الكود');
+    }finally{
+      addBtn.disabled = false;
+    }
+  });
+
+  let unsub = null;
+  function listenToCodes(){
+    if (unsub) unsub();
+    const q = query(collection(db, 'codes'), orderBy('createdAt', 'desc'));
+    unsub = onSnapshot(q, snap => {
+      if (snap.empty){
+        codeList.innerHTML = '<div class="empty-state">لا توجد أكواد بعد</div>';
+        return;
+      }
+      codeList.innerHTML = '';
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const id = docSnap.id;
+        const expiresAtMs = data.expiresAt ? data.expiresAt.toMillis() : null;
+        const isExpired = expiresAtMs && Date.now() > expiresAtMs;
+        const isRevoked = data.active === false;
+        let statusClass = 'active', statusText = 'فعّال';
+        if (isRevoked){ statusClass = 'revoked'; statusText = 'مُلغى'; }
+        else if (isExpired){ statusClass = 'expired'; statusText = 'منتهي'; }
+
+        const dateStr = expiresAtMs ? new Date(expiresAtMs).toLocaleDateString('ar-EG') : '—';
+
+        const entry = document.createElement('div');
+        entry.className = 'code-entry';
+        entry.innerHTML = `
+          <div class="code-info">
+            <div class="code-value">${id}</div>
+            <div class="code-meta ${statusClass}">${statusText} · حتى ${dateStr}${data.note ? ' · ' + escapeHtml(data.note) : ''}</div>
+          </div>
+          <div class="code-actions">
+            <button class="icon-btn toggle-btn" title="${isRevoked ? 'تفعيل' : 'إلغاء'}">
+              ${isRevoked
+                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>'}
+            </button>
+            <button class="icon-btn danger delete-btn" title="حذف">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </div>
+        `;
+        entry.querySelector('.toggle-btn').addEventListener('click', () => toggleActive(id, isRevoked));
+        entry.querySelector('.delete-btn').addEventListener('click', () => deleteCode(id));
+        codeList.appendChild(entry);
+      });
+    });
+  }
+
+  async function toggleActive(id, currentlyRevoked){
+    try{
+      await updateDoc(doc(db, 'codes', id), { active: currentlyRevoked });
+    }catch(err){ /* silent */ }
+  }
+
+  async function deleteCode(id){
+    if (!confirm('حذف هذا الكود نهائياً؟')) return;
+    try{
+      await deleteDoc(doc(db, 'codes', id));
+    }catch(err){ /* silent */ }
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
+</body>
+</html>
