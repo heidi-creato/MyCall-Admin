@@ -148,10 +148,23 @@
     background:rgba(255,255,255,.03); border:1px solid var(--line);
     border-radius:14px; padding:12px 14px; margin-bottom:8px;
   }
+  .owner-row{ display:flex; align-items:center; gap:11px; margin-bottom:10px; }
+  .avatar{
+    width:40px; height:40px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px; font-weight:800; color:#fff; text-transform:uppercase;
+  }
+  .owner-info{ min-width:0; flex:1; }
+  .owner-name{ font-size:16px; font-weight:800; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .owner-name.empty{ color:var(--muted-2); font-weight:700; font-size:14px; }
   .code-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
-  .code-info{ min-width:0; }
-  .code-value{ font-family:var(--font-mono); font-weight:800; font-size:13.5px; letter-spacing:1px; direction:ltr; text-align:left; }
-  .code-meta{ font-size:11px; color:var(--muted); margin-top:3px; }
+  .code-value{
+    font-family:var(--font-mono); font-weight:800; font-size:13.5px; letter-spacing:1px; direction:ltr; text-align:left;
+    padding:7px 11px; border-radius:10px; background:rgba(255,255,255,.05); border:1px solid var(--line);
+    min-width:0; overflow:hidden; text-overflow:ellipsis;
+  }
+  .code-meta{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .code-meta .num{ direction:ltr; unicode-bidi:isolate; display:inline-block; }
   .code-meta.expired{ color:var(--neg); }
   .code-meta.revoked{ color:var(--neg); }
   .code-meta.active{ color:var(--pos); }
@@ -188,6 +201,10 @@
   .field-hint{ font-size:10.5px; color:var(--muted-2); margin-top:4px; }
   .reactivate-row{ display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12.5px; color:var(--muted); cursor:pointer; }
   .reactivate-row input{ width:auto; margin:0; accent-color:var(--accent); }
+  .custom-code{ direction:ltr; text-align:left; font-family:var(--font-mono); letter-spacing:1px; text-transform:uppercase; }
+  .custom-code::placeholder{ text-transform:none; letter-spacing:0; font-family:var(--font); direction:rtl; }
+  input.en-num{ direction:ltr; text-align:center; }
+  input:disabled{ opacity:.4; }
   .modal-actions{ display:flex; gap:8px; margin-top:16px; }
   .btn-cancel{
     flex:1; padding:11px; font-size:13px; background:rgba(255,255,255,.05);
@@ -244,9 +261,13 @@
     <div class="modal-card">
       <div class="modal-title">تعديل الكود <span id="editCodeLabel"></span></div>
       <div class="modal-sub" id="editCurrentExpiry"></div>
-      <input id="extendDays" type="number" min="0" placeholder="تمديد بعدد أيام (اختياري)">
-      <div class="field-hint">اتركه فارغاً إذا ما تبي تغيّر تاريخ الانتهاء</div>
-      <input id="editNote" type="text" placeholder="الملاحظة" style="margin-top:12px;">
+      <label class="reactivate-row" style="margin-top:0;margin-bottom:2px;">
+        <input type="checkbox" id="unlimitedCheck">
+        كود غير منتهي الصلاحية (∞)
+      </label>
+      <input id="extendDays" class="en-num" type="text" inputmode="numeric" lang="en" dir="ltr" autocomplete="off" placeholder="تمديد بعدد أيام (اختياري)">
+      <div class="field-hint" id="extendHint">اتركه فارغاً إذا ما تبي تغيّر تاريخ الانتهاء</div>
+      <input id="editNote" type="text" placeholder="اسم صاحب الكود" style="margin-top:12px;">
       <label class="reactivate-row">
         <input type="checkbox" id="reactivateCheck">
         إعادة تفعيل الكود (لو كان ملغى)
@@ -270,9 +291,15 @@
   <div id="dashboard">
     <div class="card">
       <div class="gen-row">
-        <input class="days" id="daysInput" type="number" min="1" value="30" placeholder="عدد الأيام">
-        <input class="note" id="noteInput" type="text" placeholder="ملاحظة (اسم المستخدم مثلاً)">
+        <input class="days en-num" id="daysInput" type="text" inputmode="numeric" lang="en" dir="ltr" autocomplete="off" value="30" placeholder="الأيام">
+        <input class="note" id="noteInput" type="text" placeholder="اسم صاحب الكود">
       </div>
+      <input class="custom-code" id="customCodeInput" type="text" lang="en" dir="ltr" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20" placeholder="كود مخصص (اختياري) — مثال: AHMAD2026" style="margin-top:0;margin-bottom:6px;">
+      <div class="field-hint" style="margin:0 0 10px;">إذا تركته فارغاً يتم توليد كود عشوائي · حروف إنجليزية وأرقام و (-) فقط</div>
+      <label class="reactivate-row" style="margin-top:0;margin-bottom:12px;">
+        <input type="checkbox" id="newUnlimitedCheck">
+        كود غير منتهي الصلاحية (∞)
+      </label>
       <button class="add-btn" id="addBtn" style="width:100%;">+ إنشاء كود جديد</button>
       <div class="new-code-box" id="newCodeBox"></div>
       <div class="form-msg" id="addMsg"></div>
@@ -290,7 +317,7 @@
     getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import {
-    initializeFirestore, collection, doc, setDoc, deleteDoc, updateDoc,
+    initializeFirestore, collection, doc, setDoc, getDoc, deleteDoc, updateDoc,
     onSnapshot, Timestamp, query, orderBy
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
@@ -319,6 +346,8 @@
   const addMsg = document.getElementById('addMsg');
   const newCodeBox = document.getElementById('newCodeBox');
   const codeList = document.getElementById('codeList');
+  const customCodeInput = document.getElementById('customCodeInput');
+  const newUnlimitedCheck = document.getElementById('newUnlimitedCheck');
 
   const accountBtn = document.getElementById('accountBtn');
   const adminOverlay = document.getElementById('adminOverlay');
@@ -328,6 +357,40 @@
   const adminExpired = document.getElementById('adminExpired');
   const adminCloseBtn = document.getElementById('adminCloseBtn');
   const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+
+  /* ---------- English digits only ---------- */
+  function toEnDigits(str){
+    return String(str == null ? '' : str)
+      .replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0) - 0x0660)
+      .replace(/[\u06F0-\u06F9]/g, d => d.charCodeAt(0) - 0x06F0);
+  }
+  function fmtDate(ms){
+    const d = new Date(ms);
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    return dd + '.' + mm + '.' + d.getFullYear();
+  }
+  function bindDigitsOnly(el){
+    el.addEventListener('input', () => {
+      const clean = toEnDigits(el.value).replace(/[^0-9]/g, '');
+      if (el.value !== clean) el.value = clean;
+    });
+  }
+
+  /* ---------- unlimited codes ---------- */
+  // Unlimited = expiry date set far in the future (keeps MyCal's expiry check working unchanged)
+  const FOREVER_MS = Date.UTC(2999, 11, 31, 23, 59, 59);
+  const FOREVER_THRESHOLD = Date.UTC(2500, 0, 1);
+  function isUnlimited(data, expiresAtMs){
+    return data.unlimited === true || (expiresAtMs !== null && expiresAtMs >= FOREVER_THRESHOLD);
+  }
+
+  /* ---------- owner display ---------- */
+  function avatarColor(name){
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.codePointAt(0)) % 360;
+    return `hsl(${h} 55% 42%)`;
+  }
 
   function showMsg(el, type, text){
     el.className = 'form-msg ' + type;
@@ -389,23 +452,56 @@
   adminCloseBtn.addEventListener('click', () => adminOverlay.classList.remove('visible'));
   adminOverlay.addEventListener('click', e => { if (e.target === adminOverlay) adminOverlay.classList.remove('visible'); });
 
+  const CUSTOM_RE = /^[A-Z0-9-]{3,20}$/;
+  bindDigitsOnly(daysInput);
+  newUnlimitedCheck.addEventListener('change', () => { daysInput.disabled = newUnlimitedCheck.checked; });
+  customCodeInput.addEventListener('input', () => {
+    const clean = toEnDigits(customCodeInput.value).toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    if (customCodeInput.value !== clean) customCodeInput.value = clean;
+  });
+
   addBtn.addEventListener('click', async () => {
+    const unlimited = newUnlimitedCheck.checked;
     const days = parseInt(daysInput.value, 10);
-    if (!days || days < 1){ showMsg(addMsg, 'error', 'أدخل عدد أيام صحيح'); return; }
-    const code = generateCode();
-    const expiresAt = Timestamp.fromMillis(Date.now() + days * 86400000);
+    if (!unlimited && (!days || days < 1)){ showMsg(addMsg, 'error', 'أدخل عدد أيام صحيح'); return; }
+
+    const customRaw = toEnDigits(customCodeInput.value).trim().toUpperCase();
+    if (customRaw && !CUSTOM_RE.test(customRaw)){
+      showMsg(addMsg, 'error', 'الكود المخصص: من 3 إلى 20 خانة، حروف إنجليزية وأرقام و (-) فقط');
+      return;
+    }
+
     addBtn.disabled = true;
     try{
-      await setDoc(doc(db, 'codes', code), {
+      let code;
+      if (customRaw){
+        code = customRaw;
+        const exists = await getDoc(doc(db, 'codes', code));
+        if (exists.exists()){ showMsg(addMsg, 'error', 'هذا الكود موجود مسبقاً، اختر كوداً آخر'); return; }
+      } else {
+        for (let i = 0; i < 6; i++){
+          const candidate = generateCode();
+          const exists = await getDoc(doc(db, 'codes', candidate));
+          if (!exists.exists()){ code = candidate; break; }
+        }
+        if (!code){ showMsg(addMsg, 'error', 'تعذر توليد كود فريد، حاول مرة أخرى'); return; }
+      }
+
+      const expiresAt = Timestamp.fromMillis(unlimited ? FOREVER_MS : Date.now() + days * 86400000);
+      const payload = {
         active: true,
         createdAt: Timestamp.now(),
         expiresAt,
-        note: noteInput.value.trim() || ''
-      });
+        note: toEnDigits(noteInput.value.trim())
+      };
+      if (unlimited) payload.unlimited = true;
+      await setDoc(doc(db, 'codes', code), payload);
+
       newCodeBox.style.display = 'block';
       newCodeBox.textContent = code;
       showMsg(addMsg, 'info', 'تم إنشاء الكود بنجاح');
       noteInput.value = '';
+      customCodeInput.value = '';
     }catch(err){
       showMsg(addMsg, 'error', 'تعذر إنشاء الكود');
     }finally{
@@ -439,7 +535,8 @@
         const data = docSnap.data();
         const id = docSnap.id;
         const expiresAtMs = data.expiresAt ? data.expiresAt.toMillis() : null;
-        const isExpired = expiresAtMs && Date.now() > expiresAtMs;
+        const unlimited = isUnlimited(data, expiresAtMs);
+        const isExpired = !unlimited && expiresAtMs && Date.now() > expiresAtMs;
         const isRevoked = data.active === false;
 
         total++;
@@ -449,17 +546,24 @@
         if (isRevoked){ statusClass = 'revoked'; statusText = 'مُلغى'; }
         else if (isExpired){ statusClass = 'expired'; statusText = 'منتهي'; }
 
-        const dateStr = expiresAtMs ? new Date(expiresAtMs).toLocaleDateString('ar-EG') : '—';
-        const remainingStr = (expiresAtMs && !isRevoked) ? formatRemaining(expiresAtMs - Date.now()) : '—';
+        const dateStr = unlimited ? 'غير منتهي ∞' : (expiresAtMs ? 'حتى ' + fmtDate(expiresAtMs) : '—');
+        const remainingStr = isRevoked ? '—' : (unlimited ? '∞' : (expiresAtMs ? formatRemaining(expiresAtMs - Date.now()) : '—'));
+        const ownerName = toEnDigits(data.note || '').trim();
+        const initial = ownerName ? Array.from(ownerName)[0] : '#';
+        const avatarBg = ownerName ? avatarColor(ownerName) : 'rgba(255,255,255,.12)';
 
         const entry = document.createElement('div');
         entry.className = 'code-entry';
         entry.innerHTML = `
-          <div class="code-top">
-            <div class="code-info">
-              <div class="code-value">${id}</div>
-              <div class="code-meta ${statusClass}">${statusText} · حتى ${dateStr}${data.note ? ' · ' + escapeHtml(data.note) : ''}</div>
+          <div class="owner-row">
+            <div class="avatar" style="background:${avatarBg}">${escapeHtml(initial)}</div>
+            <div class="owner-info">
+              <div class="owner-name${ownerName ? '' : ' empty'}">${ownerName ? escapeHtml(ownerName) : 'بدون اسم'}</div>
+              <div class="code-meta ${statusClass}">${statusText} · <span class="num">${dateStr}</span></div>
             </div>
+          </div>
+          <div class="code-top">
+            <div class="code-value">${escapeHtml(id)}</div>
             <div class="code-actions">
               <button class="icon-btn copy-btn" title="نسخ الكود">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
@@ -480,7 +584,7 @@
           <div class="code-remaining">المدة الفعّالة المتبقية: <b>${remainingStr}</b></div>
         `;
         entry.querySelector('.copy-btn').addEventListener('click', (e) => copyCode(id, e.currentTarget));
-        entry.querySelector('.edit-btn').addEventListener('click', () => openEditModal(id, data, expiresAtMs, isRevoked));
+        entry.querySelector('.edit-btn').addEventListener('click', () => openEditModal(id, data, expiresAtMs, isRevoked, unlimited));
         entry.querySelector('.toggle-btn').addEventListener('click', () => toggleActive(id, isRevoked));
         entry.querySelector('.delete-btn').addEventListener('click', () => deleteCode(id));
         codeList.appendChild(entry);
@@ -513,19 +617,36 @@
   const editCurrentExpiry = document.getElementById('editCurrentExpiry');
   const extendDaysInput = document.getElementById('extendDays');
   const editNoteInput = document.getElementById('editNote');
+  const unlimitedCheck = document.getElementById('unlimitedCheck');
+  const extendHint = document.getElementById('extendHint');
   const reactivateCheck = document.getElementById('reactivateCheck');
   const editCancelBtn = document.getElementById('editCancelBtn');
   const editSaveBtn = document.getElementById('editSaveBtn');
   const editMsg = document.getElementById('editMsg');
   let editState = null;
 
-  function openEditModal(id, data, expiresAtMs, isRevoked){
-    editState = { id, expiresAtMs };
+  bindDigitsOnly(extendDaysInput);
+  function syncUnlimitedUI(){
+    const on = unlimitedCheck.checked;
+    extendDaysInput.disabled = on;
+    if (on) extendDaysInput.value = '';
+    extendHint.textContent = on
+      ? 'الكود لن تنتهي صلاحيته أبداً'
+      : (editState && editState.unlimited
+          ? 'أدخل عدد الأيام لتحويله إلى كود محدد المدة'
+          : 'اتركه فارغاً إذا ما تبي تغيّر تاريخ الانتهاء');
+  }
+  unlimitedCheck.addEventListener('change', syncUnlimitedUI);
+
+  function openEditModal(id, data, expiresAtMs, isRevoked, unlimited){
+    editState = { id, expiresAtMs, unlimited };
     editCodeLabel.textContent = id;
-    const dateStr = expiresAtMs ? new Date(expiresAtMs).toLocaleDateString('ar-EG') : '—';
+    const dateStr = unlimited ? 'غير منتهي ∞' : (expiresAtMs ? fmtDate(expiresAtMs) : '—');
     editCurrentExpiry.textContent = 'تاريخ الانتهاء الحالي: ' + dateStr;
     extendDaysInput.value = '';
-    editNoteInput.value = data.note || '';
+    editNoteInput.value = toEnDigits(data.note || '');
+    unlimitedCheck.checked = unlimited;
+    syncUnlimitedUI();
     reactivateCheck.checked = isRevoked;
     editMsg.textContent = '';
     editOverlay.classList.add('visible');
@@ -538,9 +659,19 @@
   editSaveBtn.addEventListener('click', async () => {
     if (!editState) return;
     const extendDays = parseInt(extendDaysInput.value, 10);
-    const updates = { note: editNoteInput.value.trim() };
+    const updates = { note: toEnDigits(editNoteInput.value.trim()) };
     if (reactivateCheck.checked) updates.active = true;
-    if (extendDays && extendDays > 0){
+    if (unlimitedCheck.checked){
+      updates.expiresAt = Timestamp.fromMillis(FOREVER_MS);
+      updates.unlimited = true;
+    } else if (editState.unlimited){
+      if (!extendDays || extendDays < 1){
+        showMsg(editMsg, 'error', 'أدخل عدد الأيام لتحويله إلى كود محدد المدة');
+        return;
+      }
+      updates.expiresAt = Timestamp.fromMillis(Date.now() + extendDays * 86400000);
+      updates.unlimited = false;
+    } else if (extendDays && extendDays > 0){
       const base = (editState.expiresAtMs && editState.expiresAtMs > Date.now()) ? editState.expiresAtMs : Date.now();
       updates.expiresAt = Timestamp.fromMillis(base + extendDays * 86400000);
     }
